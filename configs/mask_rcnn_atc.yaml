@@ -1,0 +1,124 @@
+# Detectron2 configuration for ATC (Animal Type Classification)
+# Based on Mask R-CNN with ResNet-50-FPN backbone
+
+_BASE_: "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"
+
+# Dataset configuration
+DATASETS:
+  TRAIN: ("atc_synthetic_train",)
+  TEST: ("atc_synthetic_val",)
+
+# Model configuration
+MODEL:
+  META_ARCHITECTURE: "GeneralizedRCNN"
+  BACKBONE:
+    NAME: "build_resnet_fpn_backbone"
+  RESNETS:
+    DEPTH: 50
+    NORM: "SyncBN"
+  FPN:
+    NORM: "SyncBN"
+  ROI_HEADS:
+    NAME: "StandardROIHeads"
+    NUM_CLASSES: 1  # Only "bovine" class
+    BATCH_SIZE_PER_IMAGE: 512
+    POSITIVE_FRACTION: 0.25
+  ROI_BOX_HEAD:
+    NAME: "FastRCNNConvFCHead"
+    NUM_FC: 2
+    FC_DIM: 1024
+    POOLER_RESOLUTION: 7
+    POOLER_SAMPLING_RATIO: 0
+    POOLER_TYPE: "ROIAlignV2"
+  ROI_MASK_HEAD:
+    NAME: "MaskRCNNConvUpsampleHead"
+    NUM_CONV: 4
+    POOLER_RESOLUTION: 14
+    POOLER_SAMPLING_RATIO: 0
+    POOLER_TYPE: "ROIAlignV2"
+  ROI_KEYPOINT_HEAD:
+    NAME: "KRCNNConvDeconvUpsampleHead"
+    CONV_DIMS: [512, 512, 512, 512, 512, 512, 512, 512]
+    NUM_KEYPOINTS: 14  # 14 keypoints for bovine
+    POOLER_RESOLUTION: 14
+    POOLER_SAMPLING_RATIO: 0
+    POOLER_TYPE: "ROIAlignV2"
+
+# Input configuration
+INPUT:
+  MIN_SIZE_TRAIN: (640, 672, 704, 736, 768, 800)
+  MAX_SIZE_TRAIN: 1333
+  MIN_SIZE_TEST: 800
+  MAX_SIZE_TEST: 1333
+  PIXEL_MEAN: [103.530, 116.280, 123.675]
+  PIXEL_STD: [1.0, 1.0, 1.0]
+
+# DataLoader configuration
+DATALOADER:
+  NUM_WORKERS: 4
+  ASPECT_RATIO_GROUPING: True
+  SAMPLER_TRAIN: "TrainingSampler"
+  REPEAT_THRESHOLD: 0.0
+
+# Solver configuration
+SOLVER:
+  IMS_PER_BATCH: 2
+  BASE_LR: 0.00025
+  STEPS: (6000, 8000)
+  MAX_ITER: 9000
+  WARMUP_ITERS: 1000
+  WARMUP_FACTOR: 1.0 / 1000
+  WARMUP_METHOD: "linear"
+  WEIGHT_DECAY: 0.0001
+  GAMMA: 0.1
+  CHECKPOINT_PERIOD: 5000
+
+# Test configuration
+TEST:
+  EVAL_PERIOD: 1000
+  DETECTIONS_PER_IMAGE: 100
+
+# Output configuration
+OUTPUT_DIR: "./artifacts"
+
+# Random seed for reproducibility
+SEED: 42
+
+# Keypoint configuration
+KEYPOINT_ON: True
+KEYPOINT_NAMES: [
+  "muzzle_tip",
+  "forehead_top", 
+  "withers",
+  "chest_center",
+  "left_chest_side",
+  "right_chest_side",
+  "hip_left",
+  "hip_right",
+  "tail_base",
+  "rump_top",
+  "left_fore_hoof",
+  "right_fore_hoof",
+  "left_rear_hoof",
+  "right_rear_hoof"
+]
+
+KEYPOINT_CONNECTION_RULES: [
+  [1, 2], [2, 3], [3, 4], [4, 5], [4, 6],  # Head to chest
+  [3, 7], [3, 8], [7, 8],  # Withers to hips
+  [7, 9], [8, 9], [9, 10],  # Hips to tail
+  [11, 12], [13, 14],  # Hoof connections
+  [4, 11], [4, 12], [7, 13], [8, 14]  # Body to hooves
+]
+
+# Augmentation configuration
+AUGMENTATION:
+  TRAIN: [
+    "ResizeShortestEdge",
+    "RandomFlip",
+    "RandomBrightness",
+    "RandomContrast"
+  ]
+  TEST: [
+    "ResizeShortestEdge"
+  ]

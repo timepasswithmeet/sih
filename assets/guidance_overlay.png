@@ -1,0 +1,2 @@
+# This would be a PNG image file, but since we can't create binary files directly,
+# the Streamlit app creates the overlay programmatically in the create_guidance_overlay() function

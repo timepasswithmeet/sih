@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  atc-app:
+    build:
+      context: .
+      target: production
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./configs:/app/configs
+    environment:
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  atc-dev:
+    build:
+      context: .
+      target: development
+    ports:
+      - "8501:8501"
+      - "8888:8888"  # Jupyter notebook
+    volumes:
+      - .:/app
+      - /app/.venv  # Exclude venv from volume mount
+    environment:
+      - PYTHONPATH=/app
+    command: streamlit run src/app/app.py --server.port=8501 --server.address=0.0.0.0
+    profiles:
+      - dev
+
+  atc-training:
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+    environment:
+      - PYTHONPATH=/app
+    command: python src/train.py --config configs/mask_rcnn_atc.yaml --epochs 10
+    profiles:
+      - training
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
